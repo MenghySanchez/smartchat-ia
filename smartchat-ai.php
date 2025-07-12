@@ -12,8 +12,13 @@ if (!defined('ABSPATH')) {
 }
 
 // Cargar archivos necesarios
-require_once plugin_dir_path(__FILE__) . 'admin/settings-page.php'; // settings-page.php: Archivo para la página de configuración del plugin en el área de administración.
-require_once plugin_dir_path(__FILE__) . 'includes/whatsapp-handler.php';       // whatsapp-handler.php: Archivo para manejar las notificaciones por WhatsApp.
+add_action('plugins_loaded', function () {
+    require_once plugin_dir_path(__FILE__) . 'admin/settings-page.php';
+    require_once plugin_dir_path(__FILE__) . 'includes/whatsapp-handler.php';
+});
+add_action('init', function () {
+    require_once plugin_dir_path(__FILE__) . 'includes/ai-handler.php'; // Cargar ai-handler.php de forma segura en el hook init
+});            
 
 // Inyectar chatbot en el frontend
 add_action('wp_footer', 'smartchat_render_chatbot'); // wp_footer: Hook para agregar HTML del chatbot al final del sitio.

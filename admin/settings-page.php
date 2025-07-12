@@ -12,17 +12,6 @@ function smartchat_admin_menu() {
     );
 }
 
-/**
- * Displays the SmartChat AI settings page in the WordPress admin area.
- *
- * This function outputs the HTML for the plugin's settings page, including
- * the form for updating plugin options. It utilizes WordPress settings API
- * functions to handle form fields and submission.
- *
- * @since 1.0.0
- *
- * @return void
- */
 function smartchat_settings_page() {
     ?>
     <div class="wrap">
@@ -40,16 +29,8 @@ function smartchat_settings_page() {
 
 add_action('admin_init', 'smartchat_register_settings');
 
-/**
- * Registra los ajustes, la sección y el campo del plugin SmartChat para los números de WhatsApp.
- *
- * - Registra la opción 'smartchat_whatsapp_numbers' en el grupo 'smartchat_settings_group'.
- * - Añade una sección de ajustes titulada 'Números de WhatsApp' en la página 'smartchat-settings'.
- * - Añade un campo de ajustes para ingresar los números de WhatsApp, separados por comas.
- *
- * @return void
- */
 function smartchat_register_settings() {
+    // WhatsApp
     register_setting('smartchat_settings_group', 'smartchat_whatsapp_numbers');
 
     add_settings_section('main_section', 'Números de WhatsApp', null, 'smartchat-settings');
@@ -61,17 +42,52 @@ function smartchat_register_settings() {
         'smartchat-settings',
         'main_section'
     );
+
+    // IA
+    register_setting('smartchat_settings_group', 'smartchat_ai_provider');
+    register_setting('smartchat_settings_group', 'smartchat_ai_key');
+    register_setting('smartchat_settings_group', 'smartchat_ai_model');
+
+    add_settings_section('ai_section', 'Conexión con IA', null, 'smartchat-settings');
+
+    add_settings_field(
+        'ai_provider',
+        'Proveedor de IA',
+        function() {
+            $value = get_option('smartchat_ai_provider', 'openai');
+            echo '<select name="smartchat_ai_provider">
+                    <option value="openai" ' . selected($value, 'openai', false) . '>OpenAI</option>
+                    <option value="gemini" ' . selected($value, 'gemini', false) . '>Gemini</option>
+                    <option value="otro" ' . selected($value, 'otro', false) . '>Otro</option>
+                  </select>';
+        },
+        'smartchat-settings',
+        'ai_section'
+    );
+
+    add_settings_field(
+        'ai_key',
+        'API Key de la IA',
+        function() {
+            $value = get_option('smartchat_ai_key');
+            echo '<input type="text" name="smartchat_ai_key" value="' . esc_attr($value) . '" size="50" />';
+        },
+        'smartchat-settings',
+        'ai_section'
+    );
+
+    add_settings_field(
+        'ai_model',
+        'Modelo (opcional)',
+        function() {
+            $value = get_option('smartchat_ai_model', 'gpt-3.5-turbo');
+            echo '<input type="text" name="smartchat_ai_model" value="' . esc_attr($value) . '" size="30" />';
+        },
+        'smartchat-settings',
+        'ai_section'
+    );
 }
 
-/**
- * Función de callback para mostrar el campo de entrada de números de WhatsApp en la página de ajustes del plugin.
- *
- * Recupera los números de WhatsApp guardados en las opciones de WordPress y los muestra
- * en un campo de texto. También muestra una descripción con un ejemplo del formato requerido.
- *
- * @since 1.0.0
- * @return void
- */
 function smartchat_numbers_field_callback() {
     $value = get_option('smartchat_whatsapp_numbers');
     echo '<input type="text" name="smartchat_whatsapp_numbers" value="' . esc_attr($value) . '" size="50" />';

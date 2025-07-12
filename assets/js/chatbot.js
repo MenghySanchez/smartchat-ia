@@ -17,17 +17,28 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function sendMessage() {
-    const userMsg = input.value.trim();
-    if (userMsg === "") return;
+  const userMsg = input.value.trim();
+  if (userMsg === "") return;
 
-    addMessage("Tú", userMsg);
-    input.value = "";
+  addMessage("Tú", userMsg);
+  input.value = "";
 
-    // Simulación de respuesta automática
-    setTimeout(() => {
-      addMessage("Bot", "Gracias por tu mensaje. Pronto me conectaré con la IA 😊");
-    }, 1000);
-  }
+  fetch("/wp-json/smartchat/v1/ask", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ message: userMsg })
+  })
+    .then(res => res.json())
+    .then(data => {
+      addMessage("Bot", data.reply || "No recibí respuesta de la IA.");
+    })
+    .catch(err => {
+      console.error("Error al conectar con IA:", err);
+      addMessage("Bot", "Hubo un error al conectar con el servidor.");
+    });
+}
 
   sendBtn.addEventListener("click", sendMessage);
   input.addEventListener("keypress", (e) => {
