@@ -27,3 +27,54 @@
   border-radius: 10px;
   overflow: hidden;
 }
+
+#smartchat-window {
+  position: fixed;
+  bottom: 90px;
+  right: 20px;
+  width: 300px;
+  height: 400px;
+  background: white;
+  border: 1px solid #ccc;
+  z-index: 9998;
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  font-family: sans-serif;
+}
+
+#smartchat-header {
+  background: #0084ff;
+  color: white;
+  padding: 10px;
+  font-weight: bold;
+  text-align: center;
+}
+
+#smartchat-messages {
+  flex: 1;
+  padding: 10px;
+  overflow-y: auto;
+  font-size: 14px;
+}
+
+#smartchat-input {
+  display: flex;
+  border-top: 1px solid #ccc;
+}
+
+#smartchat-input input {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  outline: none;
+}
+
+#smartchat-input button {
+  background: #0084ff;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  cursor: pointer;
+}

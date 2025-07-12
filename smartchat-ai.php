@@ -21,10 +21,15 @@ add_action('wp_footer', 'smartchat_render_chatbot'); // wp_footer: Hook para agr
 function smartchat_render_chatbot() {
     ?>
     <div id="smartchat-bubble">💬</div>
-    <div id="smartchat-window" style="display: none;"> <!-- // Contenedor del chatbot, inicialmente oculto.  -->
-        <iframe srcdoc="Hola, soy tu asistente. ¿En qué puedo ayudarte?" style="width: 100%; height: 100%; border: none;"></iframe>
+    <div id="smartchat-window" style="display: none;">
+        <div id="smartchat-header">Asistente IA 🤖</div>
+        <div id="smartchat-messages"></div>
+        <div id="smartchat-input">
+            <input type="text" id="smartchat-user-input" placeholder="Escribe tu mensaje..." />
+            <button id="smartchat-send-btn">Enviar</button>
+        </div>
     </div>
     <?php
-    wp_enqueue_style('smartchat-style', plugins_url('assets/css/chatbot.css', __FILE__));                    //wp_enqueue_style / script: Para cargar nuestros archivos JS y CSS.
-    wp_enqueue_script('smartchat-js', plugins_url('assets/js/chatbot.js', __FILE__), array(), false, true); //wp_enqueue_script: Para cargar nuestro archivo JS del chatbot.
+    wp_enqueue_style('smartchat-style', plugins_url('assets/css/chatbot.css', __FILE__));
+    wp_enqueue_script('smartchat-js', plugins_url('assets/js/chatbot.js', __FILE__), array(), false, true);
 }
