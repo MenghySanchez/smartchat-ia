@@ -11,6 +11,9 @@ add_action('rest_api_init', function () {
 function smartchat_handle_ai_request($request) {
     $params = $request->get_json_params();
     $message = sanitize_text_field($params['message'] ?? '');
+    // Instrucciones para el idioma y estilo de respuesta
+$language_instruction = "Responde en el idioma que detectes en el mensaje del usuario.";
+$simplify_instruction = "Responde de forma clara, breve y con párrafos cortos para facilitar la lectura.";
 
     if (empty($message)) {
         return rest_ensure_response(['reply' => 'Mensaje vacío.']);
@@ -94,7 +97,7 @@ function smartchat_handle_ai_request($request) {
             'body' => json_encode([
                 'model' => $model,
                 'messages' => [
-                    ['role' => 'system', 'content' => "Actúa como asistente experto del sitio web. Usa esta información para responder:\n" . $site_context],
+['role' => 'system', 'content' => $language_instruction . "\n" . $simplify_instruction . "\n\nActúa como asistente experto del sitio web. Usa esta información para responder:\n" . $site_context],
                     ['role' => 'user', 'content' => $message]
                 ],
             ]),
@@ -127,7 +130,7 @@ function smartchat_handle_ai_request($request) {
                 'contents' => [
                     [
                         'parts' => [
-                            ['text' => "Actúa como asistente experto del sitio web. Usa esta información para responder:\n" . $site_context],
+['text' => $language_instruction . "\n" . $simplify_instruction . "\n\nActúa como asistente experto del sitio web. Usa esta información para responder:\n" . $site_context],
                             ['text' => "Mensaje del usuario: " . $message]
                         ]
                     ]
