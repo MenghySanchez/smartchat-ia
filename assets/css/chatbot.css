@@ -78,3 +78,33 @@
   padding: 8px 12px;
   cursor: pointer;
 }
+.smartchat-message-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+  font-family: sans-serif;
+}
+
+.smartchat-bubble {
+  max-width: 75%;
+  padding: 10px 15px;
+  border-radius: 18px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.smartchat-bubble.user {
+  background-color: #dcf8c6;
+  align-self: flex-end;
+  text-align: right;
+}
+
+.smartchat-bubble.bot {
+  background-color: #f1f0f0;
+  align-self: flex-start;
+  text-align: left;
+}

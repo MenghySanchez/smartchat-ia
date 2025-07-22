@@ -3,7 +3,7 @@
  * Plugin Name: SmartChat IA
  * Description: Chatbot inteligente con IA, recomendaciones de productos/servicios y notificaciones por WhatsApp.
  * Version: 1.0
- * Author:KongStudios | by Menghy Sánchez 
+ * Author: KongStudios | by Menghy Sánchez
  */
 
 // Bloquear acceso directo
@@ -18,17 +18,17 @@ add_action('plugins_loaded', function () {
 });
 add_action('init', function () {
     require_once plugin_dir_path(__FILE__) . 'includes/ai-handler.php'; // Cargar ai-handler.php de forma segura en el hook init
-});            
+});
 
 // Inyectar chatbot en el frontend
-add_action('wp_footer', 'smartchat_render_chatbot'); // wp_footer: Hook para agregar HTML del chatbot al final del sitio.
+add_action('wp_footer', 'smartchat_render_chatbot');
 
 function smartchat_render_chatbot() {
     ?>
     <div id="smartchat-bubble">💬</div>
     <div id="smartchat-window" style="display: none;">
         <div id="smartchat-header">Asistente IA 🤖</div>
-        <div id="smartchat-messages"></div>
+        <div id="smartchat-messages" class="smartchat-message-container"></div>
         <div id="smartchat-input">
             <input type="text" id="smartchat-user-input" placeholder="Escribe tu mensaje..." />
             <button id="smartchat-send-btn">Enviar</button>

@@ -9,12 +9,13 @@ document.addEventListener("DOMContentLoaded", () => {
     windowEl.style.display = windowEl.style.display === "none" ? "flex" : "none";
   });
 
-  function addMessage(sender, text) {
-    const msg = document.createElement("div");
-    msg.innerHTML = `<strong>${sender}:</strong> ${text}`;
-    messages.appendChild(msg);
-    messages.scrollTop = messages.scrollHeight;
-  }
+function addMessage(sender, text) {
+  const msg = document.createElement("div");
+  msg.className = `smartchat-bubble ${sender.toLowerCase() === "tú" ? "user" : "bot"}`;
+  msg.textContent = text;
+  messages.appendChild(msg);
+  messages.scrollTop = messages.scrollHeight;
+}
 
   function sendMessage() {
   const userMsg = input.value.trim();
@@ -38,6 +39,15 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("Error al conectar con IA:", err);
       addMessage("Bot", "Hubo un error al conectar con el servidor.");
     });
+}
+
+function appendMessage(text, sender) {
+  const container = document.getElementById("smartchat-messages");
+  const msg = document.createElement("div");
+  msg.className = `smartchat-bubble ${sender}`;
+  msg.textContent = text;
+  container.appendChild(msg);
+  container.scrollTop = container.scrollHeight;
 }
 
   sendBtn.addEventListener("click", sendMessage);

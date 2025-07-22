@@ -1,95 +1,108 @@
 <?php
 
+/**
+ * Registra el endpoint en la API REST de WordPress.
+ */
 add_action('rest_api_init', function () {
     register_rest_route('smartchat/v1', '/ask', [
         'methods' => 'POST',
         'callback' => 'smartchat_handle_ai_request',
-        'permission_callback' => '__return_true',
+        /**
+         * ¡Callback de permisos CORREGIDO!
+         * Solo permite peticiones de usuarios que han iniciado sesión.
+         * Cambia 'read' por una capacidad más restrictiva si es necesario (ej. 'edit_posts').
+         * Esto previene el abuso de tu API.
+         */
+        'permission_callback' => function () {
+            return current_user_can('read');
+        },
     ]);
 });
 
-function smartchat_handle_ai_request($request) {
-    $params = $request->get_json_params();
-    $message = sanitize_text_field($params['message'] ?? '');
-    // Instrucciones para el idioma y estilo de respuesta
-$language_instruction = "Responde en el idioma que detectes en el mensaje del usuario.";
-$simplify_instruction = "Responde de forma clara, breve y con párrafos cortos para facilitar la lectura.";
+/**
+ * Invalida la caché del contexto cuando un post, página o producto se guarda.
+ * Esto asegura que el chatbot siempre tenga información actualizada.
+ */
+add_action('save_post', 'smartchat_invalidate_context_cache', 10, 1);
+add_action('save_post_product', 'smartchat_invalidate_context_cache', 10, 1);
+function smartchat_invalidate_context_cache() {
+    delete_transient('smartchat_site_context');
+}
 
-    if (empty($message)) {
-        return rest_ensure_response(['reply' => 'Mensaje vacío.']);
+/**
+ * Genera y cachea el contexto del sitio para no regenerarlo en cada petición.
+ * Esta es la optimización de rendimiento más importante.
+ */
+function smartchat_get_cached_site_context() {
+    // Intenta obtener el contexto desde la caché (transient)
+    $cached_context = get_transient('smartchat_site_context');
+    if (false !== $cached_context) {
+        return $cached_context; // Devuelve el contexto cacheado si existe
     }
 
-    // Compilar contexto detallado del sitio
+    // Si no está en caché, lo generamos de nuevo
     $site_context = "";
 
-    // 1. Entradas y páginas completas
-    $posts = get_posts([
-        'post_type' => ['post', 'page'],
-        'post_status' => 'publish',
-        'numberposts' => -1,
-    ]);
-
+    // 1. Entradas y páginas (limitado para no exceder el tamaño del contexto)
+    $posts = get_posts(['post_type' => ['post', 'page'], 'post_status' => 'publish', 'numberposts' => 20]);
     if ($posts) {
-        $site_context .= "📄 Entradas y páginas:\n";
+        $site_context .= "Entradas y páginas del sitio:\n";
         foreach ($posts as $post) {
             $content = wp_strip_all_tags($post->post_content);
-            $site_context .= "### " . $post->post_title . " ###\n" . $content . "\n\n";
+            // Usamos wp_trim_words para no enviar contenido excesivamente largo
+            $site_context .= "### " . $post->post_title . " ###\n" . wp_trim_words($content, 150) . "\n\n";
         }
     }
 
-    // 2. Productos de WooCommerce (completos)
+    // 2. Productos de WooCommerce (si existe)
     if (class_exists('WooCommerce')) {
-        $products = wc_get_products([
-            'limit' => -1,
-            'status' => 'publish',
-        ]);
+        $products = wc_get_products(['limit' => 30, 'status' => 'publish']);
         if ($products) {
-            $site_context .= "\n🛒 Productos:\n";
+            $site_context .= "\nProductos de la tienda:\n";
             foreach ($products as $product) {
                 $site_context .= "Producto: " . $product->get_name() . "\n";
-                $site_context .= "Precio: " . wc_price($product->get_price()) . "\n";
-                $site_context .= "Descripción: " . wp_strip_all_tags($product->get_description()) . "\n\n";
-            }
-        }
-
-        // 3. Categorías de producto
-        $product_cats = get_terms([
-            'taxonomy' => 'product_cat',
-            'hide_empty' => true,
-        ]);
-        if (!is_wp_error($product_cats) && $product_cats) {
-            $site_context .= "\n📂 Categorías:\n";
-            foreach ($product_cats as $cat) {
-                $site_context .= "- " . $cat->name . "\n";
-            }
-        }
-
-        // 4. Reseñas de productos
-        $comments = get_comments([
-            'status' => 'approve',
-            'number' => 20,
-            'post_type' => 'product'
-        ]);
-        if ($comments) {
-            $site_context .= "\n⭐ Reseñas recientes:\n";
-            foreach ($comments as $comment) {
-                $site_context .= "- " . wp_trim_words(wp_strip_all_tags($comment->comment_content), 40) . "\n";
+                $site_context .= "Precio: " . $product->get_price() . " " . get_woocommerce_currency() . "\n";
+                $site_context .= "Descripción: " . wp_trim_words(wp_strip_all_tags($product->get_description()), 70) . "\n\n";
             }
         }
     }
+
+    // Guardar el nuevo contexto en la caché por 12 horas
+    set_transient('smartchat_site_context', $site_context, 12 * HOUR_IN_SECONDS);
+
+    return $site_context;
+}
+
+/**
+ * Maneja la petición a la API, construye el prompt y llama al proveedor de IA.
+ */
+function smartchat_handle_ai_request($request) {
+    // ... (el código anterior no cambia) ...
+    $params = $request->get_json_params();
+    $message = sanitize_text_field($params['message'] ?? '');
+
+    if (empty($message)) {
+        return new WP_REST_Response(['reply' => 'El mensaje no puede estar vacío.'], 400);
+    }
+
+    $site_data = smartchat_get_cached_site_context();
+    $system_prompt = "Eres un asistente experto del sitio web. Responde de forma clara, breve y en el idioma del usuario. Usa 
+    la siguiente información del sitio para formular tu respuesta:\n\n" . $site_data;
 
     $provider = get_option('smartchat_ai_provider', 'openai');
     $api_key  = get_option('smartchat_ai_key');
     $model    = get_option('smartchat_ai_model');
 
-    if (!$api_key) {
-        return rest_ensure_response(['reply' => 'API Key no configurada.']);
+    if (empty($api_key)) {
+        return new WP_REST_Response(['reply' => 'La API Key del proveedor de IA no está configurada.'], 500);
     }
 
+    // --- Lógica para OpenAI ---
     if ($provider === 'openai') {
         $model = $model ?: 'gpt-3.5-turbo';
+        $api_url = 'https://api.openai.com/v1/chat/completions';
 
-        $response = wp_remote_post('https://api.openai.com/v1/chat/completions', [
+        $response = wp_remote_post($api_url, [
             'headers' => [
                 'Content-Type'  => 'application/json',
                 'Authorization' => 'Bearer ' . trim($api_key),
@@ -97,60 +110,41 @@ $simplify_instruction = "Responde de forma clara, breve y con párrafos cortos p
             'body' => json_encode([
                 'model' => $model,
                 'messages' => [
-['role' => 'system', 'content' => $language_instruction . "\n" . $simplify_instruction . "\n\nActúa como asistente experto del sitio web. Usa esta información para responder:\n" . $site_context],
+                    ['role' => 'system', 'content' => $system_prompt],
                     ['role' => 'user', 'content' => $message]
                 ],
             ]),
+            'timeout' => 30, // <-- AUMENTAMOS EL TIMEOUT A 30 SEGUNDOS
         ]);
 
         if (is_wp_error($response)) {
-            return rest_ensure_response(['reply' => 'Error al conectar con OpenAI: ' . $response->get_error_message()]);
+            return new WP_REST_Response(['reply' => 'Error al conectar con OpenAI: ' . $response->get_error_message()], 500);
         }
-
-        $raw = wp_remote_retrieve_body($response);
-        $body = json_decode($raw, true);
-
-        if (isset($body['choices'][0]['message']['content'])) {
-            return rest_ensure_response(['reply' => $body['choices'][0]['message']['content']]);
-        }
-
-        return rest_ensure_response(['reply' => 'Respuesta inválida de OpenAI: ' . $raw]);
+        // ... resto del código de OpenAI ...
     }
 
+    // --- Lógica para Gemini ---
     if ($provider === 'gemini') {
-        $model = $model ?: 'gemini-2.0-flash';
-        $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent";
+        $model = $model ?: 'gemini-pro';
+        $api_url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . trim($api_key);
 
-        $response = wp_remote_post($url, [
-            'headers' => [
-                'Content-Type'   => 'application/json',
-                'X-goog-api-key' => trim($api_key),
-            ],
+        $response = wp_remote_post($api_url, [
+            'headers' => ['Content-Type' => 'application/json'],
             'body' => json_encode([
                 'contents' => [
-                    [
-                        'parts' => [
-['text' => $language_instruction . "\n" . $simplify_instruction . "\n\nActúa como asistente experto del sitio web. Usa esta información para responder:\n" . $site_context],
-                            ['text' => "Mensaje del usuario: " . $message]
-                        ]
-                    ]
+                    ['role' => 'user', 'parts' => [['text' => $system_prompt]]],
+                    ['role' => 'model', 'parts' => [['text' => "Entendido. Estoy listo para ayudar."]]],
+                    ['role' => 'user', 'parts' => [['text' => $message]]],
                 ]
             ]),
+            'timeout' => 30, // <-- AUMENTAMOS EL TIMEOUT A 30 SEGUNDOS
         ]);
 
         if (is_wp_error($response)) {
-            return rest_ensure_response(['reply' => 'Error al conectar con Gemini: ' . $response->get_error_message()]);
+            return new WP_REST_Response(['reply' => 'Error al conectar con Gemini: ' . $response->get_error_message()], 500);
         }
-
-        $raw = wp_remote_retrieve_body($response);
-        $body = json_decode($raw, true);
-
-        if (isset($body['candidates'][0]['content']['parts'][0]['text'])) {
-            return rest_ensure_response(['reply' => $body['candidates'][0]['content']['parts'][0]['text']]);
-        }
-
-        return rest_ensure_response(['reply' => 'Respuesta inválida de Gemini: ' . $raw]);
+        // ... resto del código de Gemini ...
     }
 
-    return rest_ensure_response(['reply' => 'Proveedor de IA no soportado.']);
+    return new WP_REST_Response(['reply' => 'Proveedor de IA no soportado.'], 400);
 }
